@@ -1,48 +1,107 @@
+/**
+ * @file hw1.cpp
+ * @author Hitarth Thanki (hmthanki@uh.com)
+ * @date 2024-02-06
+ *
+ */
 #include <iostream>
 #include <vector>
 #include <string>
 #include <fstream>
+#include <sstream>
 #include <algorithm>
+#include <queue>
 
 using namespace std;
-/*
-cores: 2
-BSIZE is the size of the hunk of memory. 
-CORE: request that many ms of cpu time. 
-READ: read that many BLOCKs from ssd, each one being 0.1 ms, regardless of read req. 
-        the difference between block and read is what goes in the buffer
-        asume buffer reads are instantaneous
-DISPLAY: write to display for # ms
-        basically do nothing?
-INPUT: basically wait for 900ms
-        basically do nothing?
-WRITE: perform writes of size BSIZE until everything is written.
-        every write takes 0.1 ms
 
-START: start a new process at the # time stamp. 
-output format each time a process finishes:
-Process 0 terminates at t = 310ms.
-It performed 0 physical read(s), 0 logical reads, and
-1 physical write(s).
+struct process
+{
+  int PID;
+  int arrivalTime, completionTime;
+  string instruction;
+  int logicalReads;
+  int physicalReads;
+  int physicalWrites;
 
-Process states:
---------------
-  0 TERMINATED
-  1 RUNNING
+  bool operator<(const process &other) const
+  {
+    return PID < other.PID;
+  }
+};
 
-The simulation scheduler
-1.Find the next event to process by looking at:
-✓ Core request completion times
-✓ SSD request completion times
-✓ INPUT and DISPLAY request completion time
-✓ Arrival time of the next process
-2.Set current time to that time
-3.Process event routine
-4.Repeat until all processes are done
+struct input_tuple
+{
+  std::string column1;
+  int column2;
+};
 
-*/
-int main(){
-    cout << "hello world" <<endl;
+class Scheduler
+{
+public:
+  queue<process> readyQueue, ssdQueue;
+  priority_queue<process> mainQueue;
+  bool cpuIsEmpty, ssdIsEmpty;
+  int clockTime = 0, BSIZE;
+  vector<input_tuple> inputTable;
 
-    return 0;
+  // put methods here.
+  void readInput();
+  void printInputTable();
+};
+void Scheduler::readInput()
+{
+  ifstream in_file("//hw/hw1/in.txt");
+
+  if (!in_file.is_open())
+  {
+    cerr << "Error: Unable to open file." << endl;
+  }
+
+  string line;
+  while (getline(in_file, line))
+  {
+    line.erase(0, line.find_first_not_of(" \t"));
+    line.erase(line.find_last_not_of(" \t") + 1);
+
+    if (line.empty())
+      break;
+
+    istringstream iss(line);
+    input_tuple row;
+
+    if (!(iss >> row.column1 >> row.column2))
+    {
+      cerr << "Error reading line: " << line << endl;
+      continue;
+    }
+
+    inputTable.push_back(row);
+  }
+  in_file.close();
+}
+
+void Scheduler::printInputTable()
+{
+  std::cout << "Process Table:" << std::endl;
+  std::cout << "--------------" << std::endl;
+  std::cout << "Column 1\tColumn 2" << std::endl;
+  std::cout << "--------------" << std::endl;
+  for (const auto &row : inputTable)
+  {
+    std::cout << row.column1 << "\t\t" << row.column2 << std::endl;
+  }
+};
+
+int main()
+{
+  Scheduler scheduler;
+
+  scheduler.readInput();
+  scheduler.printInputTable();
+  // while (!scheduler.mainQueue.empty())
+  // {
+  //   process top = scheduler.mainQueue.top();
+  //   scheduler.mainQueue.pop();
+  // }
+  return 0;
 }

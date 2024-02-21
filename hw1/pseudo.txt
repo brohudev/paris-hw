@@ -1,0 +1,236 @@
+CLASS NormalQueue:
+    METHOD __init__():
+        items = []
+
+    METHOD enqueue(item):
+        ADD item to items
+
+    METHOD dequeue():
+        IF is_empty() THEN
+            RAISE IndexError("dequeue from an empty queue")
+        RETURN POP item from the front of items
+
+    METHOD front():
+        IF is_empty() THEN
+            RAISE IndexError("front from an empty queue")
+        RETURN first item in items
+
+    METHOD is_empty():
+        RETURN length of items == 0
+
+    METHOD size():
+        RETURN length of items
+
+    METHOD print_elements():
+        FOR EACH item IN items:
+            PRINT "Process", item[0], "| Time Needed:", item[1]
+
+    METHOD printR_elements():
+        RETURN list of first elements of each item in items
+
+
+CLASS PriorityQueue:
+    METHOD __init__():
+        heap = []
+
+    METHOD push(item, priority):
+        ADD (priority, item) to heap using heapq.heappush()
+
+    METHOD pop():
+        IF is_empty() THEN
+            RAISE IndexError("pop from an empty priority queue")
+        priority, item = POP item from heap using heapq.heappop()
+        RETURN priority, item
+
+    METHOD top():
+        IF is_empty() THEN
+            RAISE IndexError("top from an empty priority queue")
+        RETURN first item in heap
+
+    METHOD is_empty():
+        RETURN length of heap == 0
+
+    METHOD print_elements():
+        FOR EACH (priority, item) IN heap:
+            PRINT "Process:", item[0], "| Command:", item[1], "| Time:", priority
+
+
+FUNCTION print_processt(table):
+    PRINT "Process #", "Start Time", "Start Line #", "End Line #", "Current Line", "State"
+    FOR EACH item IN table:
+        IF length of item > 4 THEN
+            PRINT item[0], item[1], item[2], item[3], item[4], item[5]
+        ELSE:
+            PRINT item[0], item[1], item[2], item[3]
+
+FUNCTION readvalues():
+    input_table = []
+    OPEN 'in.txt' as in_file
+    READ first line s from in_file
+    WHILE s is not empty:
+        STRIP s
+        IF s is not empty THEN
+            SPLIT s by spaces
+            CONVERT s[1] to integer
+            APPEND s to input_table
+            READ next line s from in_file
+    RETURN input_table
+
+FUNCTION process_table():
+    b_size = 0
+    values = readvalues()
+    process_t = []
+    num_process = 0
+    FOR EACH index, value IN enumerate(values):
+        IF value[0] is 'BSIZE' THEN
+            b_size = value[1]
+        IF process_t is empty THEN
+            IF value[0] is 'START' THEN
+                APPEND [num_process, value[1], index] to process_t
+                INCREMENT num_process
+        ELSE:
+            IF value[0] is 'START' THEN
+                APPEND index - 1 to last item of process_t
+                APPEND [num_process, value[1], index] to process_t
+                INCREMENT num_process
+            ELSE IF index + 1 is equal to length of values THEN
+                APPEND index to last item of process_t
+    PRINT "Line#", "Operation"
+    FOR EACH value IN values:
+        PRINT value[0], value[1]
+    RETURN process_t, b_size
+
+FUNCTION has_arrived(Clock_Time, PID):
+    global emptyCPU
+    command, value = input_table[table_process[PID][4]]
+    IF emptyCPU THEN
+        emptyCPU = False
+        mainQueue.push([PID, 'CORE'], value + Clock_Time)
+        table_process[PID][5] = 'Running'
+    ELSE:
+        ReadyQueue.enqueue([PID, value])
+        table_process[PID][5] = 'Ready'
+
+FUNCTION finished_core(Clock_Time, PID):
+    global emptyCPU
+    IF NOT ReadyQueue.is_empty() THEN
+        top = ReadyQueue.dequeue()
+        mainQueue.push([top[0], 'CORE'], top[1] + Clock_Time)
+        table_process[top[0]][5] = 'Running'
+    ELSE:
+        emptyCPU = True
+    IF table_process[PID][3] >= table_process[PID][4] + 1 THEN
+        table_process[PID][4] += 1
+        Request_Sort(Clock_Time, PID)
+    ELSE:
+        completed(Clock_Time, PID)
+
+FUNCTION finished_sdd(Clock_Time, PID):
+    global EmptySSD
+    IF NOT SSDQueue.is_empty() THEN
+        top = SSDQueue.dequeue()
+        mainQueue.push([top[0], 'WRITE'], 0.1 + Clock_Time)
+        table_process[top[0]][5] = 'Blocked'
+    ELSE:
+        EmptySSD = True
+    IF table_process[PID][3] >= table_process[PID][4] + 1 THEN
+        table_process[PID][4] += 1
+        Request_Sort(Clock_Time, PID)
+    ELSE:
+        completed(Clock_Time, PID)
+
+FUNCTION completed(Clock_Time, PID):
+    PRINT "The process", PID, "has terminated"
+    table_process[PID][5] = 'Terminated'
+
+FUNCTION Request_Sort(Clock_Time, PID):
+    global EmptySSD
+    global emptyCPU
+    Request = input_table[table_process[PID][4]]
+    IF Request[0] is 'WRITE' THEN
+        IF EmptySSD THEN
+            EmptySSD = False
+            mainQueue.push([PID, Request[0]], Clock_Time + 0.1)
+            table_process[PID][5] = 'Blocked'
+        ELSE:
+            SSDQueue.enqueue([PID, Request[1]])
+            table_process[PID][5] = 'Blocked'
+    IF Request[0] is 'CORE' THEN
+        IF emptyCPU THEN
+            emptyCPU = False
+            mainQueue.push([PID, Request[0]], Clock_Time + Request[1])
+            table_process[PID][5] = 'Running'
+        ELSE:
+            ReadyQueue.enqueue([PID, Request[1]])
+            table_process[PID][5] = 'Ready'
+
+FUNCTION print_visual(x, clock, R, S, MQ, EC, ES):
+    PRINT "MainQueue : ",
+    IF NOT MQ.is_empty() THEN
+        MQ.print_elements()
+    ELSE:
+        PRINT '[]',
+    PRINT()
+    PRINT "ReadyQueue : ",
+    IF NOT R.is_empty() THEN
+        R.print_elements()
+    ELSE:
+        PRINT '[]',
+    PRINT()
+    PRINT "SSDQueue : ",
+    IF NOT S.is_empty() THEN
+        S.print_elements()
+    ELSE:
+        PRINT '[]',
+    PRINT()
+    z = [i[-1] for i in x IF str(i[-1]).isalpha()]
+    FOR EACH i, e IN enumerate(z):
+        PRINT "Process", i, "is", e
+    count1 = length of '[A]' IF EC ELSE length of '[X]' + length of ' RQ: ' + length of str(S.printR_elements()) - 2
+    count2 = length of '[A]' IF EC ELSE length of '[X]' + length of ' RQ: ' + length of str(R.printR_elements()) - 2
+    maxie = max(count1, count2)
+    IF count1 > count2 THEN
+        PRINT " CP:", '[A]' IF EC ELSE '[X]', '-' * 0, "> SQ:", S.printR_elements()
+        FOR i in range(2):
+            PRINT "|", maxie * " ", "|"
+        PRINT " RQ:", R.printR_elements(), "<", "-" * (count1 - count2), " SD:", '[A]' IF ES ELSE '[X]'
+    ELSE IF count1 < count2 THEN
+        PRINT " CP:", '[A]' IF EC ELSE '[X]', '-' * (count2 - count1), "> SQ:", S.printR_elements()
+        FOR i in range(2):
+            PRINT "|", maxie * " ", "|"
+        PRINT " RQ:", R.printR_elements(), "<", "-" * 0, " SD:", '[A]' IF ES ELSE '[X]'
+    ELSE:
+        PRINT " CP:", '[A]' IF EC ELSE '[X]', '-' * 0, "> SQ:", S.printR_elements()
+        FOR i in range(2):
+            PRINT "|", maxie * " ", "|"
+        PRINT " RQ:", R.printR_elements(), "<", "-" * 0, " SD:", '[A]' IF ES ELSE '[X]'
+
+
+table_process, BSIZE = process_table()
+input_table = readvalues()
+mainQueue = PriorityQueue()
+ReadyQueue, SSDQueue = NormalQueue(), NormalQueue()
+emptyCPU, EmptySSD = True, True
+FOR i in range(length of table_process):
+    Time, ProcessID = table_process[i][1], table_process[i][0]
+    mainQueue.push([ProcessID, 'START'], Time)
+Clock_Time = 0
+print_visual(table_process, Clock_Time, ReadyQueue, SSDQueue, mainQueue, emptyCPU, EmptySSD)
+WHILE NOT mainQueue.is_empty():
+    PRINT('-' * 130)
+    element_popped = mainQueue.pop()
+    Time, ProcessID, Command = element_popped[0], element_popped[1][0], element_popped[1][1]
+    Clock_Time = Time
+    IF Command is 'START' THEN
+        table_process[ProcessID].append(table_process[ProcessID][2])
+        table_process[ProcessID].append('Arrived')
+        table_process[ProcessID][4] += 1
+        has_arrived(Clock_Time, ProcessID)
+    IF Command is 'CORE' THEN
+        finished_core(Clock_Time, ProcessID)
+    IF Command is 'WRITE' THEN
+        finished_sdd(Clock_Time, ProcessID)
+    PRINT()
+    print_processt(table_process)
+    PRINT "The clock time is:", Clock_Time
+    print_visual(table_process, Clock_Time, ReadyQueue, SSDQueue, mainQueue, emptyCPU, EmptySSD)
