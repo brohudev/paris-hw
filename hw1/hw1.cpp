@@ -16,7 +16,7 @@ using namespace std;
 struct process
 {
   int PID;
-  double time;
+  double completionTime, arrivalTime;
   string instruction;
   int logicalReads;
   int physicalReads;
@@ -24,14 +24,14 @@ struct process
 
   bool operator<(const process &other) const
   {
-    return time < other.time; // todo idk what "time" the ppt is referring to. so this is a guess.
+    return completionTime < other.completionTime; // todo idk what "time" the ppt is referring to. so this is a guess.
   }
 };
 
 struct input_tuple
 {
-  string column1;
-  int column2;
+  string command;
+  int time;
 };
 
 struct ptable_tuple
@@ -40,7 +40,7 @@ struct ptable_tuple
   int startLine;
   int endLine;
   int currentLine;
-  int state;
+  int state; // 1 = running, 2 = ready
 };
 
 class Scheduler
@@ -64,8 +64,11 @@ public:
   void makeProcessTable(); // makes the process table used by the mainqueue
   void printProcessTable();
 
-  void arrivalFunciton();
+  void arrivalFunction();
   void completion();
+
+  // create process structs using `processTable` and place them into `mainQueue`
+  void initializeMainQueue();
 };
 
 // standin for readvalues
@@ -90,7 +93,7 @@ void Scheduler::readInput()
     istringstream iss(line);
     input_tuple row;
 
-    if (!(iss >> row.column1 >> row.column2))
+    if (!(iss >> row.command >> row.time))
     {
       cerr << "Error reading line: " << line << endl;
       continue;
@@ -104,43 +107,43 @@ void Scheduler::readInput()
 // standin for process_table
 void Scheduler::makeProcessTable()
 {
-  int num_process = 0;
-  for (int j = 0; j < inputTable.size(); ++j)
+  int num_process = 0; // set as pid first then incremented to form the count
+  for (int i = 0; i < inputTable.size(); ++i)
   {
-    auto i = inputTable[j];
-    if (i.column1 == "BSIZE")
+    auto inputLine = inputTable[i];   // get line
+    if (inputLine.command == "BSIZE") // if i = 0
     {
-      BSIZE = i.column2;
+      BSIZE = inputLine.time;
     }
-    if (processTable.empty())
+    else if (processTable.empty()) // first inputLine, at i = 0
     {
-      if (i.column1 == "START")
+      if (inputLine.command == "START")
       {
-        processTable.push_back({num_process, i.column2, j});
+        processTable.push_back({num_process, 1, 1, -1, 0});
         num_process++;
       }
     }
-    else
+    else // rest of procs.
     {
-      if (i.column1 == "START")
+      if (inputLine.command == "START") // new proc, and update last procs endline.
       {
-        processTable[num_process - 1].endLine = j - 1;
-        processTable.push_back({num_process, i.column2, j});
+        processTable[num_process - 1].endLine = i - 1;
+        processTable.push_back({num_process, i, i, -1, 0});
         num_process++;
       }
-      else if ((j + 1) == processTable.size())
+      else if ((i + 1) == processTable.size())
       {
-        processTable[num_process - 1].endLine = j;
+        processTable[num_process - 1].endLine = i;
       }
     }
   }
-  std::cout << "Line#  Operation\n\n";
-  for (auto &i : inputTable)
-  {
-    int space = 10;
-    int left = space - i.column1.size();
-    std::cout << i.column1 << std::string(left, ' ') << i.column2 << std::endl;
-  }
+  // std::cout << "Line#  Operation\n\n";
+  // for (auto &i : inputTable)
+  // {
+  //   int space = 10;
+  //   int left = space - i.command.size();
+  //   std::cout << i.command << std::string(left, ' ') << i.time << std::endl;
+  // }
 }
 void Scheduler::printProcessTable()
 {
@@ -153,25 +156,40 @@ void Scheduler::printProcessTable()
   }
 }
 
+void Scheduler::initializeMainQueue()
+{
+  // create a process struct
+  // copy over all of the details from the process and input tables for this process.
+  cout << "hello";
+}
+
+// todo implement these two methods:
+void Scheduler::arrivalFunction(){};
+void Scheduler::completion(){};
+
 int main()
 {
   Scheduler scheduler;
 
   scheduler.readInput();
+
   scheduler.makeProcessTable();
-  scheduler.printProcessTable();
+
+  scheduler.initializeMainQueue();
+
+  scheduler.printProcessTable(); // just here for debugging
 
   // the imp part:
-  while (!scheduler.mainQueue.empty())
-  {
-    process top = scheduler.mainQueue.top();
-    scheduler.mainQueue.pop();
+  // while (!scheduler.mainQueue.empty())
+  // {
+  //   process top = scheduler.mainQueue.top();
+  //   scheduler.mainQueue.pop();
 
-    scheduler.clockTime = top.time; // set the clock time = time completion/arrival time
-    if (top.instruction == "START")
-      scheduler.arrivalFunction();
-    else
-      scheduler.completion();
-  }
+  //   scheduler.clockTime = top.completionTime; // set the clock time = time completion/arrival time
+  //   if (top.instruction == "START")           // the event is a start
+  //     scheduler.arrivalFunction();
+  //   else
+  //     scheduler.completion(); // the event is completion
+  // }
   return 0;
 }

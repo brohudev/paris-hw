@@ -91,11 +91,11 @@ def process_table():
             
             elif((j+1)==len(values)):
                 process_t[num_process-1].append(j)
-    print(f'{"Line#"}  {"Operation"} \n')
-    for i in values:
-        space =10
-        left = space-len(i[0])
-        print(f'{i[0]}{left*" "}{i[1]}')
+    # print(f'{"Line#"}  {"Operation"} \n')
+    # for i in values:
+    #     space =10
+    #     left = space-len(i[0])
+    #     print(f'{i[0]}{left*" "}{i[1]}')
     return process_t,b_size 
 def has_arrived(Clock_Time,PID):
     global emptyCPU

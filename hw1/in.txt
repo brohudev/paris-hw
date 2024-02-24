@@ -7,6 +7,3 @@ START  100
 CORE   80  
 WRITE 4096
 CORE   40
-
-
-
