@@ -17,7 +17,7 @@ struct process
 {
   int PID;
   double time;
-  string instruction;
+  // string instruction;
   int logicalReads;
   int physicalReads;
   int physicalWrites;
@@ -25,7 +25,7 @@ struct process
   process(int pid, double inputTime, const string instr,
           int logReads, int physReads, int physWrites)
       : PID(pid), time(inputTime),
-        instruction(instr), logicalReads(logReads), physicalReads(physReads),
+        logicalReads(logReads), physicalReads(physReads),
         physicalWrites(physWrites) {}
 
   bool operator<(const process &other) const // so that the mainQueue correctly sorts using the time.
@@ -63,6 +63,7 @@ public:
   void printProcessTable();
   void arrivalFunction(process &);
   void requestCoreTime(process &);
+  void requestSSDTime(process &);
   void completion(process &);
   void terminateProcess(process &);
   void initializeMainQueue();
@@ -200,7 +201,7 @@ void Scheduler::requestCoreTime(process &proc)
     // get the time for the command at the current line of this proc and update it.
     // cout << "old proc time is: " << proc.time << endl; //? here purely for debugging
     proc.time += inputTable[processTable[proc.PID].currentLine].time;
-    proc.instruction = inputTable[processTable[proc.PID].currentLine].command; // todo remove this if needed.
+    // proc.instruction = inputTable[processTable[proc.PID].currentLine].command; // todo remove this if needed.
     // cout << "new proc time is: " << proc.time << endl; //? purely for debugging
 
     mainQueue.push(proc); // push it back in.
@@ -212,6 +213,11 @@ void Scheduler::requestCoreTime(process &proc)
     // cout << "pushed process#: " << proc.PID << "into readyQueue" << endl; //? here purely for debugging
   }
 }
+// todo implement requestssdtime method
+void Scheduler::requestSSDTime(process &proc)
+{
+  cout << "process requested ssd time." << endl;
+}
 void Scheduler::terminateProcess(process &proc)
 {
   std::cout << "Process " << proc.PID << " terminates at t = " << proc.time << "ms. ";
@@ -222,20 +228,42 @@ void Scheduler::terminateProcess(process &proc)
   // std::cout << PID << " TERMINATED " << PID + 1 << " RUNNING" << std::endl;
   // todo implement above line to print status of each process in processTable
 }
+/**
+ * @brief This is where the cpu is freed, and where the instruction advacnes per process.
+This is also the main loop that takes processes that are done with their time in the cpu and update them
+ * @param proc
+ */
 void Scheduler::completion(process &proc)
 {
   // declare the core to be open
   cpuIsEmpty = true;
-  if (!readyQueue.empty()) // flush out the ready queue.
+  if (!readyQueue.empty()) // somebody in the queue before this process?
   {
     process top = readyQueue.front();
     readyQueue.pop();
 
-    requestCoreTime(top);
+    requestCoreTime(top); // the one in the queue goes first. then it gets added to the mainqueue.
   }
-  if (processTable[proc.PID].endLine == processTable[proc.PID].currentLine)
+
+  if (processTable[proc.PID].endLine == processTable[proc.PID].currentLine) // process go through all its instructions?
   {
-    terminateProcess(proc); // basically rpint it all out
+    terminateProcess(proc); // basically print it all out
+  }
+  else // well then let it move on to its next instruction.
+  {
+    processTable[proc.PID].currentLine++; // move  the currentLine along.
+  }
+
+  if (inputTable[processTable[proc.PID].currentLine].command == "READ" || inputTable[processTable[proc.PID].currentLine].command == "WRITE") // ssd request?
+  {
+    requestSSDTime(proc);
+    return; // todo remove if needed
+  }
+
+  else if (inputTable[processTable[proc.PID].currentLine].command == "INPUT" || inputTable[processTable[proc.PID].currentLine].command == "DISPLAY")
+  {
+    proc.time += inputTable[processTable[proc.PID].currentLine].time; // get the time for which these two requests will run, and add it to the time of this proc.
+    mainQueue.push(proc);                                             // back in it goes.
   }
 };
 
@@ -254,7 +282,7 @@ int main()
     scheduler.mainQueue.pop();
 
     scheduler.clockTime = top.time; // set the clock time = time completion/arrival time
-    if (top.instruction == "START")
+    if (scheduler.inputTable[scheduler.processTable[top.PID].currentLine].command == "START")
     {
       scheduler.arrivalFunction(top);
     }
@@ -263,5 +291,6 @@ int main()
       scheduler.completion(top); // the event is completion
     }
   }
+
   return 0;
 }
