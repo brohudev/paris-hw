@@ -216,7 +216,10 @@ void Scheduler::requestCoreTime(process &proc)
 // todo implement requestssdtime method
 void Scheduler::requestSSDTime(process &proc)
 {
-  cout << "process requested ssd time." << endl;
+  // is it a read command?
+  //  implement an ssdread method. there if its logical you push the proc right back into mainqueue and make another core request. otherwise you push it onto ssdq?
+  // is it a write command?
+  // use physical writes every. single. time.
 }
 void Scheduler::terminateProcess(process &proc)
 {
