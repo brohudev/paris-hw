@@ -33,13 +33,11 @@ struct process
     return other.time < time;
   }
 };
-
 struct input_tuple
 {
   string command;
   int time;
 };
-
 struct ptable_tuple
 {
   int pid;
@@ -48,31 +46,24 @@ struct ptable_tuple
   int currentLine;
   int state; // 1 = running, 2 = ready
 };
-
 class Scheduler
 {
 public:
   // global vars:
-
   queue<process> readyQueue, ssdQueue; // regular queues for the resp resources
   priority_queue<process> mainQueue;   // what the scheduler mainly works with
-
-  bool cpuIsEmpty, ssdIsEmpty;
+  bool cpuIsEmpty = true, ssdIsEmpty = true;
   int clockTime, BSIZE;
-
   vector<input_tuple> inputTable;
   vector<ptable_tuple> processTable;
 
   // methods:
-
-  void readInput(); // stores the input file in `inputTable`
-
+  void readInput();        // stores the input file in `inputTable`
   void makeProcessTable(); // makes the process table used by the mainqueue
   void printProcessTable();
-
   void arrivalFunction(process &);
+  void requestCoreTime(process &);
   void completion(process &);
-
   void initializeMainQueue();
 };
 
@@ -108,7 +99,6 @@ void Scheduler::readInput()
   }
   in_file.close();
 }
-
 // standin for process_table
 void Scheduler::makeProcessTable()
 {
@@ -161,7 +151,6 @@ void Scheduler::printProcessTable()
   }
   cout << endl;
 }
-
 // create process structs using `processTable` and place them into `mainQueue`
 void Scheduler::initializeMainQueue()
 {
@@ -170,9 +159,6 @@ void Scheduler::initializeMainQueue()
   {
     // create a struct with pid, its start time, its start command, and 0 for logical/physical reads/writes
     process temp(processTable[index].pid, (inputTable[processTable[index].startLine].time), inputTable[processTable[index].startLine].command, 0, 0, 0);
-
-    if (index == 0) // brute force the startline of the first process.
-      processTable[index].currentLine = 1;
 
     mainQueue.push(temp); // in it goes!
   }
@@ -188,12 +174,23 @@ void Scheduler::initializeMainQueue()
   //   cout << temp.physicalWrites << ", \n";
   // }
 }
-
-// todo implement these two methods:
-void Scheduler::arrivalFunction(process &top)
+// entry point into the logic once scheduler detects the proc is a 'new' proc.
+void Scheduler::arrivalFunction(process &proc)
 {
-  cout << "hello";
+  // change the currentline field of processtable to start line +1.
+  processTable[proc.PID].currentLine = processTable[proc.PID].startLine + 1;
+
+  // get command from input table (core. more like get the time for which it runs.)
+  int command = inputTable[processTable[proc.PID].currentLine].time;
+
+  cout << "Process# " << proc.PID << ", arrived with command: CORE " << command << endl;
+
+  requestCoreTime(proc); // the only command that runs on arrival of a new process.
 };
+void Scheduler::requestCoreTime(process &proc)
+{
+  cout << "got to request core time function" << endl;
+}
 void Scheduler::completion(process &top)
 {
   cout << "hello";
@@ -206,8 +203,6 @@ int main()
   scheduler.readInput();
   scheduler.makeProcessTable();
   scheduler.initializeMainQueue();
-
-  scheduler.printProcessTable(); // just here for debugging
 
   // the imp part:
   while (!scheduler.mainQueue.empty())
