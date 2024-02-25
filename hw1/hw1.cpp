@@ -70,8 +70,8 @@ public:
   void makeProcessTable(); // makes the process table used by the mainqueue
   void printProcessTable();
 
-  void arrivalFunction();
-  void completion();
+  void arrivalFunction(process &);
+  void completion(process &);
 
   void initializeMainQueue();
 };
@@ -152,13 +152,14 @@ void Scheduler::makeProcessTable()
 }
 void Scheduler::printProcessTable()
 {
-  std::cout << "PID\tStart Line\tEnd Line\tCurrent Line\tState\n";
+  cout << "PID\tStart Line\tEnd Line\tCurrent Line\tState\n";
   for (const auto &entry : processTable)
   {
-    std::cout << entry.pid << "\t" << entry.startLine << "\t\t"
-              << entry.endLine << "\t\t" << entry.currentLine << "\t\t"
-              << entry.state << "\n";
+    cout << entry.pid << "\t" << entry.startLine << "\t\t"
+         << entry.endLine << "\t\t" << entry.currentLine << "\t\t"
+         << entry.state << "\n";
   }
+  cout << endl;
 }
 
 // create process structs using `processTable` and place them into `mainQueue`
@@ -175,25 +176,25 @@ void Scheduler::initializeMainQueue()
 
     mainQueue.push(temp); // in it goes!
   }
-  while (!mainQueue.empty())
-  {
-    process temp = mainQueue.top();
-    mainQueue.pop();
-    cout << temp.PID << ", "; // just here for debugging.
-    cout << temp.instruction << ", ";
-    cout << temp.time << ", ";
-    cout << temp.logicalReads << ", ";
-    cout << temp.physicalReads << ", ";
-    cout << temp.physicalWrites << ", \n";
-  }
+  // while (!mainQueue.empty()) // just here for debugging.
+  // {
+  //   process temp = mainQueue.top();
+  //   mainQueue.pop();
+  //   cout << temp.PID << ", ";
+  //   cout << temp.instruction << ", ";
+  //   cout << temp.time << ", ";
+  //   cout << temp.logicalReads << ", ";
+  //   cout << temp.physicalReads << ", ";
+  //   cout << temp.physicalWrites << ", \n";
+  // }
 }
 
 // todo implement these two methods:
-void Scheduler::arrivalFunction()
+void Scheduler::arrivalFunction(process &top)
 {
   cout << "hello";
 };
-void Scheduler::completion()
+void Scheduler::completion(process &top)
 {
   cout << "hello";
 };
@@ -215,10 +216,14 @@ int main()
     scheduler.mainQueue.pop();
 
     scheduler.clockTime = top.time; // set the clock time = time completion/arrival time
-    if (top.instruction == "START") // the event is a start
-      scheduler.arrivalFunction();
+    if (top.instruction == "START")
+    {
+      scheduler.arrivalFunction(top);
+    }
     else
-      scheduler.completion(); // the event is completion
+    {
+      scheduler.completion(top); // the event is completion
+    }
   }
   return 0;
 }
