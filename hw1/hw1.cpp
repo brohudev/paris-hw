@@ -189,7 +189,25 @@ void Scheduler::arrivalFunction(process &proc)
 };
 void Scheduler::requestCoreTime(process &proc)
 {
-  cout << "got to request core time function" << endl;
+  if (cpuIsEmpty)
+  {
+    // set global flag.
+    cpuIsEmpty = false;
+    // this means its running.
+    processTable[proc.PID].state = 1;
+    // get the time for the command at the current line of this proc and update it.
+    // cout << "old proc time is: " << proc.time << endl; //? here purely for debugging
+    proc.time += inputTable[processTable[proc.PID].currentLine].time;
+    // cout << "new proc time is: " << proc.time << endl; //? purely for debugging
+
+    mainQueue.push(proc); // push it back in.
+  }
+  else
+  {
+    processTable[proc.PID].state = 2; // which means the proc is in the readyQueue
+    readyQueue.push(proc);            // chuck it in dere
+    // cout << "pushed process#: " << proc.PID << "into readyQueue" << endl; //? here purely for debugging
+  }
 }
 void Scheduler::completion(process &top)
 {
