@@ -64,6 +64,7 @@ public:
   void arrivalFunction(process &);
   void requestCoreTime(process &);
   void completion(process &);
+  void terminateProcess(process &);
   void initializeMainQueue();
 };
 
@@ -187,6 +188,7 @@ void Scheduler::arrivalFunction(process &proc)
 
   requestCoreTime(proc); // the only command that runs on arrival of a new process.
 };
+
 void Scheduler::requestCoreTime(process &proc)
 {
   if (cpuIsEmpty)
@@ -210,17 +212,30 @@ void Scheduler::requestCoreTime(process &proc)
     // cout << "pushed process#: " << proc.PID << "into readyQueue" << endl; //? here purely for debugging
   }
 }
+void Scheduler::terminateProcess(process &proc)
+{
+  std::cout << "Process " << proc.PID << " terminates at t = " << proc.time << "ms. ";
+  std::cout << "It performed " << proc.physicalReads << " physical read(s), " << proc.logicalReads << " logical read(s), ";
+  std::cout << "and " << proc.physicalWrites << " physical write(s). ";
+  std::cout << "Process states: ";
+  std::cout << std::string(14, '-') << " ";
+  // std::cout << PID << " TERMINATED " << PID + 1 << " RUNNING" << std::endl;
+  // todo implement above line to print status of each process in processTable
+}
 void Scheduler::completion(process &proc)
 {
-  if (proc.instruction == "CORE")
+  // declare the core to be open
+  cpuIsEmpty = true;
+  if (!readyQueue.empty()) // flush out the ready queue.
   {
-    // you can either terminate
-    // or you can go to ssd
-    // or you can go to input display
+    process top = readyQueue.front();
+    readyQueue.pop();
+
+    requestCoreTime(top);
   }
-  else if (proc.instruction == "SSD")
+  if (processTable[proc.PID].endLine == processTable[proc.PID].currentLine)
   {
-    // you can go to core.
+    terminateProcess(proc); // basically rpint it all out
   }
 };
 
