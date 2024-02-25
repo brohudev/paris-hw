@@ -198,6 +198,7 @@ void Scheduler::requestCoreTime(process &proc)
     // get the time for the command at the current line of this proc and update it.
     // cout << "old proc time is: " << proc.time << endl; //? here purely for debugging
     proc.time += inputTable[processTable[proc.PID].currentLine].time;
+    proc.instruction = inputTable[processTable[proc.PID].currentLine].command; // todo remove this if needed.
     // cout << "new proc time is: " << proc.time << endl; //? purely for debugging
 
     mainQueue.push(proc); // push it back in.
@@ -209,9 +210,18 @@ void Scheduler::requestCoreTime(process &proc)
     // cout << "pushed process#: " << proc.PID << "into readyQueue" << endl; //? here purely for debugging
   }
 }
-void Scheduler::completion(process &top)
+void Scheduler::completion(process &proc)
 {
-  cout << "hello";
+  if (proc.instruction == "CORE")
+  {
+    // you can either terminate
+    // or you can go to ssd
+    // or you can go to input display
+  }
+  else if (proc.instruction == "SSD")
+  {
+    // you can go to core.
+  }
 };
 
 int main()
