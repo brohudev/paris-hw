@@ -59,7 +59,6 @@ public:
   vector<ptable_tuple> processTable;
 
   // methods:
-  void readInput();        // stores the input file in `inputTable`
   void makeProcessTable(); // makes the process table used by the mainqueue
   void printProcessTable();
   void initializeMainQueue();
@@ -77,71 +76,9 @@ public:
   void terminateProcess(process &);
 };
 
-// standin for readvalues
-void Scheduler::readInput()
-{
-  ifstream in_file("/home/brohudev/treasurechest/00_College/02_Sophomore_Year_Archive/spring/OS (cosc 3360)/hw/hw1/in.txt"); // todo fix this to use input redirection.
-
-  if (!in_file.is_open())
-  {
-    cerr << "Error: Unable to open file." << endl;
-  }
-
-  string line;
-  while (getline(in_file, line))
-  {
-    line.erase(0, line.find_first_not_of(" \t"));
-    line.erase(line.find_last_not_of(" \t") + 1);
-
-    if (line.empty())
-      break;
-
-    istringstream iss(line);
-    input_tuple row;
-
-    if (!(iss >> row.command >> row.time))
-    {
-      cerr << "Error reading line: " << line << endl;
-      continue;
-    }
-
-    inputTable.push_back(row);
-  }
-  in_file.close();
-}
 // standin for process_table
 void Scheduler::makeProcessTable()
 {
-  // int num_process = 0; // set as pid first then incremented to form the count
-  // for (int i = 0; i < inputTable.size(); ++i)
-  // {
-  //   auto inputLine = inputTable[i];   // get line
-  //   if (inputLine.command == "BSIZE") // if i = 0
-  //   {
-  //     BSIZE = inputLine.time;
-  //   }
-  //   else if (processTable.empty()) // first inputLine, at i = 0
-  //   {
-  //     if (inputLine.command == "START")
-  //     {
-  //       processTable.push_back({num_process, 1, 1, -1, 0});
-  //       num_process++;
-  //     }
-  //   }
-  //   else // rest of procs.
-  //   {
-  //     if (inputLine.command == "START") // new proc, and update last procs endline.
-  //     {
-  //       processTable[num_process - 1].endLine = i - 1;
-  //       processTable.push_back({num_process, i, i, -1, 0});
-  //       num_process++;
-  //     }
-  //     else if ((i + 1) == processTable.size())
-  //     {
-  //       processTable[num_process - 1].endLine = i;
-  //     }
-  //   }
-  // }
   int num_process = 0; // set as pid first then incremented to form the count.
   for (int i = 0; i < inputTable.size(); ++i)
   {
@@ -399,7 +336,28 @@ int main()
 {
   Scheduler scheduler;
 
-  scheduler.readInput();
+  string line;
+  while (getline(cin, line)) // read in the input file into a table for ease of use
+  {
+    line.erase(0, line.find_first_not_of(" \t"));
+    line.erase(line.find_last_not_of(" \t") + 1);
+
+    if (line.empty())
+      break;
+
+    istringstream iss(line);
+    input_tuple row;
+
+    if (!(iss >> row.command >> row.time))
+    {
+      cerr << "Error reading line: " << line << endl;
+      continue;
+    }
+
+    scheduler.inputTable.push_back(row);
+  }
+
+  // build the rest of the data structures
   scheduler.makeProcessTable();
   scheduler.printProcessTable();
   scheduler.initializeMainQueue();
