@@ -110,10 +110,10 @@ def has_arrived(Clock_Time,PID):
         table_process[PID][5]='Ready'
 def finished_core(Clock_Time,PID):
     global emptyCPU
-    if not ReadyQueue.is_empty():
+    if not ReadyQueue.is_empty(): # if there is procs in the queue
         top = ReadyQueue.dequeue()
-        mainQueue.push([top[0],'CORE'],top[1]+Clock_Time)
-        table_process[top[0]][5]='Running'
+        mainQueue.push([top[0],'CORE'],top[1]+Clock_Time) # give the first one cpu time
+        table_process[top[0]][5]='Running' # and yeet it into the main queue. 
     else:
         emptyCPU = True 
     #go to the next request

@@ -1,8 +1,8 @@
 /**
- * @file hw1.cpp
- * @author Hitarth Thanki (hmthanki@uh.com)
- * @date 2024-02-06
- *
+ AUTHOR: Hitarth Thanki (hmthanki@uh.com)
+ DATE: 2024-02-06
+ COURSE: COSC 3360: Operating Systems
+ PSID: 2131201
  */
 #include <iostream>
 #include <vector>
@@ -53,6 +53,7 @@ public:
   queue<process> readyQueue, ssdQueue; // regular queues for the resp resources
   priority_queue<process> mainQueue;   // what the scheduler mainly works with
   bool cpuIsEmpty = true, ssdIsEmpty = true;
+  int buffer = -1; // bucket to keep track of buffer size across the scheduler.
   int clockTime, BSIZE;
   vector<input_tuple> inputTable;
   vector<ptable_tuple> processTable;
@@ -61,12 +62,19 @@ public:
   void readInput();        // stores the input file in `inputTable`
   void makeProcessTable(); // makes the process table used by the mainqueue
   void printProcessTable();
+  void initializeMainQueue();
+
   void arrivalFunction(process &);
+  void completionFunction(process &);
+
   void requestCoreTime(process &);
   void requestSSDTime(process &);
-  void completion(process &);
+
+  void coreCompletion(process &);
+  void ssdCompletion(process &);
+  void iocompletion(process &);
+
   void terminateProcess(process &);
-  void initializeMainQueue();
 };
 
 // standin for readvalues
@@ -104,15 +112,45 @@ void Scheduler::readInput()
 // standin for process_table
 void Scheduler::makeProcessTable()
 {
-  int num_process = 0; // set as pid first then incremented to form the count
+  // int num_process = 0; // set as pid first then incremented to form the count
+  // for (int i = 0; i < inputTable.size(); ++i)
+  // {
+  //   auto inputLine = inputTable[i];   // get line
+  //   if (inputLine.command == "BSIZE") // if i = 0
+  //   {
+  //     BSIZE = inputLine.time;
+  //   }
+  //   else if (processTable.empty()) // first inputLine, at i = 0
+  //   {
+  //     if (inputLine.command == "START")
+  //     {
+  //       processTable.push_back({num_process, 1, 1, -1, 0});
+  //       num_process++;
+  //     }
+  //   }
+  //   else // rest of procs.
+  //   {
+  //     if (inputLine.command == "START") // new proc, and update last procs endline.
+  //     {
+  //       processTable[num_process - 1].endLine = i - 1;
+  //       processTable.push_back({num_process, i, i, -1, 0});
+  //       num_process++;
+  //     }
+  //     else if ((i + 1) == processTable.size())
+  //     {
+  //       processTable[num_process - 1].endLine = i;
+  //     }
+  //   }
+  // }
+  int num_process = 0; // set as pid first then incremented to form the count.
   for (int i = 0; i < inputTable.size(); ++i)
   {
-    auto inputLine = inputTable[i];   // get line
-    if (inputLine.command == "BSIZE") // if i = 0
+    auto inputLine = inputTable[i];
+    if (inputLine.command == "BSIZE")
     {
       BSIZE = inputLine.time;
     }
-    else if (processTable.empty()) // first inputLine, at i = 0
+    else if (processTable.empty())
     {
       if (inputLine.command == "START")
       {
@@ -120,27 +158,28 @@ void Scheduler::makeProcessTable()
         num_process++;
       }
     }
-    else // rest of procs.
+    else
     {
-      if (inputLine.command == "START") // new proc, and update last procs endline.
+      if (inputLine.command == "START")
       {
         processTable[num_process - 1].endLine = i - 1;
         processTable.push_back({num_process, i, i, -1, 0});
         num_process++;
       }
-      else if ((i + 1) == processTable.size())
+      else if (i == inputTable.size() - 1)
       {
         processTable[num_process - 1].endLine = i;
       }
     }
   }
-  // std::cout << "Line#  Operation\n\n";
-  // for (auto &i : inputTable)
-  // {
-  //   int space = 10;
-  //   int left = space - i.command.size();
-  //   std::cout << i.command << std::string(left, ' ') << i.time << std::endl;
-  // }
+
+  std::cout << "Line#  Operation\n\n";
+  for (auto &i : inputTable)
+  {
+    int space = 10;
+    int left = space - i.command.size();
+    std::cout << i.command << std::string(left, ' ') << i.time << std::endl;
+  }
 }
 void Scheduler::printProcessTable()
 {
@@ -213,13 +252,57 @@ void Scheduler::requestCoreTime(process &proc)
     // cout << "pushed process#: " << proc.PID << "into readyQueue" << endl; //? here purely for debugging
   }
 }
-// todo implement requestssdtime method
 void Scheduler::requestSSDTime(process &proc)
 {
-  // is it a read command?
-  //  implement an ssdread method. there if its logical you push the proc right back into mainqueue and make another core request. otherwise you push it onto ssdq?
-  // is it a write command?
-  // use physical writes every. single. time.
+  if (inputTable[processTable[proc.PID].currentLine].command == "READ") // is it a read command?
+  {
+    // todo look at paris's math on slide 71 for referrence on how to correctly perform a read.
+    if (buffer - inputTable[processTable[proc.PID].currentLine].time >= 0) // can i do logical read?
+    {
+      buffer -= inputTable[processTable[proc.PID].currentLine].time; // do a logical read.
+      proc.logicalReads++;                                           // mark the logical read
+      cout << "process#: " << proc.PID << "performed a logical READ of: " << inputTable[processTable[proc.PID].currentLine].time << " Bytes" << endl;
+      // todo get rid of this request if its incorrect.
+      requestCoreTime(proc); // process next instruction in the process' store (corerequest.)
+    }
+    else // physical read time
+    {
+      buffer = buffer - inputTable[processTable[proc.PID].currentLine].time + BSIZE; // perform a physical read.
+      proc.physicalReads++;                                                          // for the stats
+
+      cout << "process #: " << proc.PID << " performed a logical READ at time " << proc.time << endl;
+
+      if (ssdIsEmpty) // if the ssd is empty push it onto the mainqueue.
+      {
+        mainQueue.push(proc);             // there is no queue.
+        processTable[proc.PID].state = 3; // set the state of this process as blocked, since its interrupted by an io call.
+        cout << "process #: " << proc.PID << " got pushed into the mainqueue." << endl;
+      }
+      else // else push it into the ssdqueue.
+      {
+        ssdQueue.push(proc);
+        processTable[proc.PID].state = 3; // it is still blocked if its waiting on the system who is doing calls for other procs.
+        cout << "process #: " << proc.PID << " got pushed into the ssd queue with a blocked state." << endl;
+      }
+    }
+  }
+  if (inputTable[processTable[proc.PID].currentLine].command == "WRITE") // is it a write command?
+  {
+    proc.physicalWrites++; // trigger a "physical write"
+    if (ssdIsEmpty)        // push the proc onto mainqueue if ssd is empty
+    {
+      mainQueue.push(proc);             // it is first in line.
+      processTable[proc.PID].state = 3; // mark it is blocked because all writes are blocking.
+      cout << "process #: " << proc.PID << " performed a physical WRITE. it is in the blocked state now." << endl;
+    }
+    else
+    {
+      ssdQueue.push(proc);
+      processTable[proc.PID].state = 3; // mark it is blocked because it is still waiting for another call to finish.
+      cout << "process #: " << proc.PID << " got pushed into the ssd queue, waiting to perform a WRITE." << endl;
+
+    } // else push the proc onto ssd queue.
+  }
 }
 void Scheduler::terminateProcess(process &proc)
 {
@@ -228,47 +311,89 @@ void Scheduler::terminateProcess(process &proc)
   std::cout << "and " << proc.physicalWrites << " physical write(s). ";
   std::cout << "Process states: ";
   std::cout << std::string(14, '-') << " ";
-  // std::cout << PID << " TERMINATED " << PID + 1 << " RUNNING" << std::endl;
-  // todo implement above line to print status of each process in processTable
+  cout << "PROCESS NO. \t STATUS \n";
+  cout << "----------- \t ------ \n";
+  for (auto element : processTable)
+  {
+    cout << element.pid << "\t" << element.state;
+  }
 }
 /**
  * @brief This is where the cpu is freed, and where the instruction advacnes per process.
 This is also the main loop that takes processes that are done with their time in the cpu and update them
  * @param proc
  */
-void Scheduler::completion(process &proc)
+void Scheduler::coreCompletion(process &proc)
 {
-  // declare the core to be open
-  cpuIsEmpty = true;
+  cpuIsEmpty = true;       // declare the core to be open
   if (!readyQueue.empty()) // somebody in the queue before this process?
   {
     process top = readyQueue.front();
     readyQueue.pop();
-
-    requestCoreTime(top); // the one in the queue goes first. then it gets added to the mainqueue.
+    requestCoreTime(top);  //? the one in the queue goes first. (this recurses until the queue is empty. idk if this is what i want)
+    readyQueue.push(proc); // put the incoming proc in the queue.
+    cout << "process #: " << proc.PID << " got pushed into the ready queue as it was not empty." << endl;
   }
 
   if (processTable[proc.PID].endLine == processTable[proc.PID].currentLine) // process go through all its instructions?
   {
-    terminateProcess(proc); // basically print it all out
+    terminateProcess(proc); // print it all out
   }
-  else // well then let it move on to its next instruction.
+  else // let it move on to its next instruction.
   {
+    requestCoreTime(proc);                // let the proc have the core.
     processTable[proc.PID].currentLine++; // move  the currentLine along.
-  }
-
-  if (inputTable[processTable[proc.PID].currentLine].command == "READ" || inputTable[processTable[proc.PID].currentLine].command == "WRITE") // ssd request?
-  {
-    requestSSDTime(proc);
-    return; // todo remove if needed
-  }
-
-  else if (inputTable[processTable[proc.PID].currentLine].command == "INPUT" || inputTable[processTable[proc.PID].currentLine].command == "DISPLAY")
-  {
-    proc.time += inputTable[processTable[proc.PID].currentLine].time; // get the time for which these two requests will run, and add it to the time of this proc.
-    mainQueue.push(proc);                                             // back in it goes.
+    cout << "process #: " << proc.PID << " completed its CORE request." << endl;
   }
 };
+void Scheduler::iocompletion(process &proc)
+{
+
+  proc.time += inputTable[processTable[proc.PID].currentLine].time; // update the times. .
+  mainQueue.push(proc);                                             // back in it goes.
+}
+void Scheduler::ssdCompletion(process &proc)
+{
+  // declare the ssd to be open.
+  ssdIsEmpty = true;
+  if (!ssdQueue.empty()) // schedule the process thats waiting in ssdqueue if one
+  {
+    process top = ssdQueue.front();
+    ssdQueue.push(proc); // let the proc stand in line.
+    requestSSDTime(top); //
+  }
+  else // else increment the current line of the process by one.
+  {
+    requestSSDTime(proc); // let the proc have its time.
+
+    if (inputTable[processTable[proc.PID].currentLine].command == "WRITE") // all writes take 0.1 ms.
+      proc.time += 0.1;
+
+    processTable[proc.PID].currentLine++; // OFFICIALLY MOVE ON TO THE NEXT LINE.
+    cout << "process #: " << proc.PID << " just finished its ssd request and is back in the main queue." << endl;
+
+    mainQueue.push(proc); // process its next instruction
+  }
+}
+void Scheduler::completionFunction(process &proc) // pretty self explanatory.
+{
+  if (inputTable[processTable[proc.PID].currentLine].command == "CORE")
+  {
+    cout << "process #: " << proc.PID << " is here for a CORE completion event from mainq." << endl;
+
+    coreCompletion(proc);
+  }
+  else if (inputTable[processTable[proc.PID].currentLine].command == "READ" || inputTable[processTable[proc.PID].currentLine].command == "WRITE")
+  {
+    cout << "process #: " << proc.PID << " is here for a SSD completion event from mainq." << endl;
+    ssdCompletion(proc);
+  }
+  else if (inputTable[processTable[proc.PID].currentLine].command == "INPUT" || inputTable[processTable[proc.PID].currentLine].command == "DISPLAY")
+  {
+    cout << "process #: " << proc.PID << " is here for a INPUT/OUTPUT completion event from mainq." << endl;
+    iocompletion(proc);
+  }
+}
 
 int main()
 {
@@ -276,24 +401,25 @@ int main()
 
   scheduler.readInput();
   scheduler.makeProcessTable();
+  scheduler.printProcessTable();
   scheduler.initializeMainQueue();
 
   // the imp part:
-  while (!scheduler.mainQueue.empty())
-  {
-    process top = scheduler.mainQueue.top();
-    scheduler.mainQueue.pop();
+  // while (!scheduler.mainQueue.empty())
+  // {
+  //   process top = scheduler.mainQueue.top();
+  //   scheduler.mainQueue.pop();
 
-    scheduler.clockTime = top.time; // set the clock time = time completion/arrival time
-    if (scheduler.inputTable[scheduler.processTable[top.PID].currentLine].command == "START")
-    {
-      scheduler.arrivalFunction(top);
-    }
-    else
-    {
-      scheduler.completion(top); // the event is completion
-    }
-  }
+  //   scheduler.clockTime = top.time; // set the clock time = time completion/arrival time
+  //   if (scheduler.inputTable[scheduler.processTable[top.PID].currentLine].command == "START")
+  //   {
+  //     scheduler.arrivalFunction(top);
+  //   }
+  //   else
+  //   {
+  //     scheduler.completionFunction(top); // the event is completion
+  //   }
+  // }
 
   return 0;
 }
