@@ -1,0 +1,10 @@
+--- output10.txt	2024-03-01 19:31:41.888983431 -0600
++++ myoutput10.txt	2024-03-01 19:58:43.057281643 -0600
+@@ -1,5 +1,2 @@
+-Process 0 terminates at time 1280.2 ms.
+-it performed 1 physical read(s), 0 in-memory read(s), and 1 physical write(s).
+-Process Table:
+-Process 0 is TERMINATED.
+-
++process #: 0 performed a logical READ at time 200
++process #: 0 got pushed into the mainqueue.

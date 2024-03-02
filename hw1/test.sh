@@ -47,3 +47,8 @@ for casenum in `seq 10 1 14`; do
             rm -f ${casenum}.stdcout
 	fi
 done
+# ./hw1 < input10.txt > myoutput10.txt
+# ./hw1 < input11.txt > myoutput11.txt
+# ./hw1 < input12.txt > myoutput12.txt
+# ./hw1 < input13.txt > myoutput13.txt
+# ./hw1 < input14.txt > myoutput14.txt

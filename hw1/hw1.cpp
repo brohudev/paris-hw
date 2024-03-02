@@ -110,7 +110,6 @@ void Scheduler::readInput() // here purely for debugging. will cahnge back to ma
   }
   in_file.close();
 }
-// standin for process_table
 void Scheduler::makeProcessTable()
 {
   int num_process = 0; // set as pid first then incremented to form the count.
@@ -144,13 +143,13 @@ void Scheduler::makeProcessTable()
     }
   }
 
-  std::cout << "Line#  Operation\n\n";
-  for (auto &i : inputTable)
-  {
-    int space = 10;
-    int left = space - i.command.size();
-    std::cout << i.command << std::string(left, ' ') << i.time << std::endl;
-  }
+  // std::cout << "Line#  Operation\n\n";
+  // for (auto &i : inputTable)
+  // {
+  //   int space = 10;
+  //   int left = space - i.command.size();
+  //   std::cout << i.command << std::string(left, ' ') << i.time << std::endl;
+  // }
 }
 void Scheduler::printProcessTable()
 {
@@ -163,7 +162,6 @@ void Scheduler::printProcessTable()
   }
   cout << endl;
 }
-// create process structs using `processTable` and place them into `mainQueue`
 void Scheduler::initializeMainQueue()
 {
   // for all values in the p table
@@ -186,8 +184,6 @@ void Scheduler::initializeMainQueue()
   //   cout << temp.physicalWrites << ", \n";
   // }
 }
-// entry point into the logic once scheduler detects the proc is a 'new' proc.
-
 void Scheduler::arrivalFunction(process &proc)
 {
   // change the currentline field of processtable to start line +1.
@@ -277,26 +273,20 @@ void Scheduler::terminateProcess(process &proc)
 {
   processTable[proc.PID].state = TERMINATED; // mark it is done.
 
-  cout << " Process " << proc.PID << " terminates at t = " << proc.time << "ms. ";
-  cout << "It performed " << proc.physicalReads << " physical read(s), " << proc.logicalReads << " logical read(s), ";
-  cout << "and " << proc.physicalWrites << " physical write(s). ";
-  cout << "\nProcess states: \n";
-  cout << "PROCESS NO. \t STATUS \n";
-  cout << "----------- \t ------ \n";
+  cout << "Process " << proc.PID << " terminates at time " << proc.time << ".0 ms.\n";
+  cout << "it performed " << proc.physicalReads << " physical read(s), " << proc.logicalReads << " in-memory read(s), ";
+  cout << "and " << proc.physicalWrites << " physical write(s). \n";
+  cout << "Process Table: \n";
+  // cout << "---------------- \n";
   for (auto element : processTable)
   {
     if (element.state != "-1") // this is just to brute force rpint terminated status only once, but still print everything in order
-      cout << element.pid << "\t" << element.state << endl;
+      cout << "Process " << element.pid << " is " << element.state << "." << endl;
   }
   cout << endl;
 
   processTable[proc.PID].state = "-1"; // mark it to never show up in any other status prints.
 }
-/**
- * @brief This is where the cpu is freed, and where the instruction advacnes per process.
-This is also the main loop that takes processes that are done with their time in the cpu and update them
- * @param proc
- */
 void Scheduler::coreCompletion(process &proc)
 {
   cpuIsEmpty = true; // declare the core to be open
@@ -368,34 +358,27 @@ int main()
 {
   Scheduler scheduler;
 
-  // string line;
-  // while (getline(cin, line)) // read in the input file into a table for ease of use
-  // {
-  //   line.erase(0, line.find_first_not_of(" \t"));
-  //   line.erase(line.find_last_not_of(" \t") + 1);
+  string line;
+  while (getline(cin, line)) // read in the input file into a table for ease of use
+  {
+    line.erase(0, line.find_first_not_of(" \t"));
+    line.erase(line.find_last_not_of(" \t") + 1);
+    if (line.empty())
+      break;
+    istringstream iss(line);
+    input_tuple row;
+    if (!(iss >> row.command >> row.time))
+    {
+      cerr << "Error reading line: " << line << endl;
+      continue;
+    }
+    scheduler.inputTable.push_back(row);
+  }
 
-  //   if (line.empty())
-  //     break;
-
-  //   istringstream iss(line);
-  //   input_tuple row;
-
-  //   if (!(iss >> row.command >> row.time))
-  //   {
-  //     cerr << "Error reading line: " << line << endl;
-  //     continue;
-  //   }
-
-  //   scheduler.inputTable.push_back(row);
-  // }
-
-  // build the rest of the data structures
-  scheduler.readInput();
   scheduler.makeProcessTable();
-  scheduler.printProcessTable();
+  // scheduler.printProcessTable();
   scheduler.initializeMainQueue();
 
-  // the imp part:
   while (!scheduler.mainQueue.empty())
   {
     process top = scheduler.mainQueue.top();
@@ -411,6 +394,5 @@ int main()
       scheduler.completionFunction(top); // the event is completion
     }
   }
-
   return 0;
 }
