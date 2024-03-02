@@ -69,6 +69,8 @@
     "__hash_table": "cpp",
     "__tree": "cpp",
     "map": "cpp",
-    "set": "cpp"
+    "set": "cpp",
+    "sstream": "cpp",
+    "algorithm": "cpp"
   }
 }
