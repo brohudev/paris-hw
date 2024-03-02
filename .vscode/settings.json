@@ -60,6 +60,15 @@
     "vector": "cpp",
     "fstream": "cpp",
     "ostream": "cpp",
-    "iostream": "cpp"
+    "iostream": "cpp",
+    "*.tcc": "cpp",
+    "deque": "cpp",
+    "list": "cpp",
+    "string": "cpp",
+    "unordered_map": "cpp",
+    "__hash_table": "cpp",
+    "__tree": "cpp",
+    "map": "cpp",
+    "set": "cpp"
   }
 }

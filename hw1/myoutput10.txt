@@ -1,2 +1,5 @@
-process #: 0 performed a logical READ at time 200
-process #: 0 got pushed into the mainqueue.
+Process 0 terminates at time 1280.2 ms.
+it performed 1 physical read(s), 0 in-memory read(s), and 1 physical write(s). 
+Process Table: 
+Process 0 is TERMINATED.
+

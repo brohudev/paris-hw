@@ -1,8 +1,0 @@
---- output11.txt	2024-03-01 19:21:52.165854456 -0600
-+++ myoutput11.txt	2024-03-01 19:58:43.057281643 -0600
-@@ -1,5 +0,0 @@
--Process 0 terminates at time 2570.7 ms.
--it performed 3 physical read(s), 4 in-memory read(s), and 4 physical write(s).
--Process Table:
--Process 0 is TERMINATED.
--

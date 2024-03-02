@@ -12,6 +12,7 @@
 #include <sstream>
 #include <algorithm>
 #include <queue>
+#include <iomanip>
 using namespace std;
 
 struct process
@@ -54,7 +55,7 @@ public:
   queue<process> readyQueue, ssdQueue; // regular queues for the resp resources
   priority_queue<process> mainQueue;   // what the scheduler mainly works with
   bool cpuIsEmpty = true, ssdIsEmpty = true;
-  int buffer = -1; // bucket to keep track of buffer size across the scheduler.
+  int buffer = 0; // bucket to keep track of buffer size across the scheduler.
   double clockTime;
   int BSIZE;
   vector<input_tuple> inputTable;
@@ -72,7 +73,7 @@ public:
 
   void requestCoreTime(process &);
   void requestSSDTime(process &);
-
+  void requestIOTime(process &);
   void coreCompletion(process &);
   void ssdCompletion(process &);
   void iocompletion(process &);
@@ -222,29 +223,31 @@ void Scheduler::requestSSDTime(process &proc)
     if (buffer - inputTable[processTable[proc.PID].currentLine].time >= 0) // can i do logical read?
     {
       buffer -= inputTable[processTable[proc.PID].currentLine].time; // do a logical read.
-      proc.logicalReads++;                                           // mark the logical read
-      cout << "process#: " << proc.PID << "performed a logical READ of: " << inputTable[processTable[proc.PID].currentLine].time << " Bytes" << endl;
-      // todo get rid of this request if its incorrect.
-      requestCoreTime(proc); // process next instruction in the process' store (corerequest.)
+
+      proc.logicalReads++; // mark the logical read
+
+      // cout << "process#: " << proc.PID << "performed a logical READ of: " << inputTable[processTable[proc.PID].currentLine].time << " Bytes" << endl;
+
+      mainQueue.push(proc); // yeet it for ssdcompletion since log reads take 0 ms.
     }
     else // physical read time
     {
-      buffer = buffer - inputTable[processTable[proc.PID].currentLine].time + BSIZE; // perform a physical read.
-      proc.physicalReads++;                                                          // for the stats
-
-      cout << "process #: " << proc.PID << " performed a logical READ at time " << proc.time << endl;
-
+      //  cout << "process #: " << proc.PID << " performed a physical READ at time " << proc.time << endl;
       if (ssdIsEmpty) // if the ssd is empty push it onto the mainqueue.
       {
-        mainQueue.push(proc);                   // there is no queue.
-        processTable[proc.PID].state = BLOCKED; // set the state of this process as blocked, since its interrupted by an io call.
-        cout << "process #: " << proc.PID << " got pushed into the mainqueue." << endl;
+        ssdIsEmpty = false;
+        buffer = buffer - inputTable[processTable[proc.PID].currentLine].time + BSIZE; // perform a physical read.
+        proc.physicalReads++;                                                          // for the stats
+
+        proc.time += 0.1;     // todo get rid of this request if its incorrect.
+        mainQueue.push(proc); // there is no queue.
+        // cout << "process #: " << proc.PID << " got pushed into the mainqueue." << endl;
       }
       else // else push it into the ssdqueue.
       {
         ssdQueue.push(proc);
         processTable[proc.PID].state = BLOCKED; // it is still blocked if its waiting on the system who is doing calls for other procs.
-        cout << "process #: " << proc.PID << " got pushed into the ssd queue with a blocked state." << endl;
+        // cout << "process #: " << proc.PID << " got pushed into the ssd queue with a blocked state." << endl;
       }
     }
   }
@@ -269,11 +272,17 @@ void Scheduler::requestSSDTime(process &proc)
     } // else push the proc onto ssd queue.
   }
 }
+void Scheduler::requestIOTime(process &proc)
+{
+  proc.time = clockTime + inputTable[processTable[proc.PID].currentLine].time;
+  mainQueue.push(proc); // back in it goes as it never has to wait for anything.
+}
+
 void Scheduler::terminateProcess(process &proc)
 {
   processTable[proc.PID].state = TERMINATED; // mark it is done.
 
-  cout << "Process " << proc.PID << " terminates at time " << proc.time << ".0 ms.\n";
+  cout << "Process " << proc.PID << " terminates at time " << setprecision(1) << fixed << proc.time << " ms.\n";
   cout << "it performed " << proc.physicalReads << " physical read(s), " << proc.logicalReads << " in-memory read(s), ";
   cout << "and " << proc.physicalWrites << " physical write(s). \n";
   cout << "Process Table: \n";
@@ -309,7 +318,7 @@ void Scheduler::coreCompletion(process &proc)
   else if (inputTable[processTable[proc.PID].currentLine].command == "INPUT" || inputTable[processTable[proc.PID].currentLine].command == "DISPLAY")
   {
     // cout << "process #: " << proc.PID << " has its next command as an a INPUT/OUTPUT event." << endl;
-    iocompletion(proc);
+    requestIOTime(proc);
   }
   else if (inputTable[processTable[proc.PID].currentLine].command == "READ" || inputTable[processTable[proc.PID].currentLine].command == "WRITE")
   {
@@ -317,11 +326,6 @@ void Scheduler::coreCompletion(process &proc)
     requestSSDTime(proc);
   }
 };
-void Scheduler::iocompletion(process &proc)
-{
-  proc.time += inputTable[processTable[proc.PID].currentLine].time; // todo fix this to be the time similar to the corerequest statement of update time.
-  mainQueue.push(proc);                                             // back in it goes.
-}
 void Scheduler::ssdCompletion(process &proc)
 {
   ssdIsEmpty = true;
@@ -333,33 +337,30 @@ void Scheduler::ssdCompletion(process &proc)
   }
 
   processTable[proc.PID].currentLine++;
-  // cout << "process #: " << proc.PID << " just finished its ssd request and is back in the main queue." << endl;
-
-  if (processTable[proc.PID].endLine < processTable[proc.PID].currentLine) // check the end in case the write command is the last one.
+  processTable[proc.PID].state = READY;
+  if (processTable[proc.PID].endLine < processTable[proc.PID].currentLine) // check if the ssd is the last command just in case
     terminateProcess(proc);
-  else // otherwise time for another round at the cpu!
+  else // the only command after an ssd completes is a core.
     requestCoreTime(proc);
 }
-void Scheduler::completionFunction(process &proc) // pretty self explanatory.
+void Scheduler::completionFunction(process &proc)
 {
   if (inputTable[processTable[proc.PID].currentLine].command == "CORE")
-  {
-    // cout << "process #: " << proc.PID << " is here for a CORE completion event from mainq." << endl;
     coreCompletion(proc);
-  }
   else if (inputTable[processTable[proc.PID].currentLine].command == "READ" || inputTable[processTable[proc.PID].currentLine].command == "WRITE")
-  {
-    // cout << "process #: " << proc.PID << " is here for a SSD completion event from mainq." << endl;
     ssdCompletion(proc);
+  else if (inputTable[processTable[proc.PID].currentLine].command == "INPUT" || inputTable[processTable[proc.PID].currentLine].command == "DISPLAY")
+  {
+    processTable[proc.PID].currentLine++;
+    requestCoreTime(proc);
   }
 }
 
 int main()
 {
   Scheduler scheduler;
-
   string line;
-  while (getline(cin, line)) // read in the input file into a table for ease of use
+  while (getline(cin, line)) // read in the input file into a struct vector for ease of use
   {
     line.erase(0, line.find_first_not_of(" \t"));
     line.erase(line.find_last_not_of(" \t") + 1);
@@ -374,25 +375,18 @@ int main()
     }
     scheduler.inputTable.push_back(row);
   }
-
   scheduler.makeProcessTable();
-  // scheduler.printProcessTable();
   scheduler.initializeMainQueue();
-
   while (!scheduler.mainQueue.empty())
   {
     process top = scheduler.mainQueue.top();
     scheduler.mainQueue.pop();
 
-    scheduler.clockTime = top.time; // set the clock time = time completion/arrival time
+    scheduler.clockTime = top.time; // jump the times
     if (scheduler.inputTable[scheduler.processTable[top.PID].currentLine].command == "START")
-    {
       scheduler.arrivalFunction(top);
-    }
     else
-    {
-      scheduler.completionFunction(top); // the event is completion
-    }
+      scheduler.completionFunction(top);
   }
   return 0;
 }
