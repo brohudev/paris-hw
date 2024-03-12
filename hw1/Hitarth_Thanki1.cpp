@@ -1,9 +1,11 @@
 /**
+ TITLE: Assignment 1
  AUTHOR: Hitarth Thanki (hmthanki@uh.com)
  DATE: 2024-02-06
  COURSE: COSC 3360: Operating Systems
  PSID: 2131201
  PROFESSOR: Dr. Paris
+ COMPILATION: none. default g++ build command should be enough to test using input redirection.
  */
 
 #include <iostream>
@@ -60,7 +62,6 @@ public:
   // ^ spaghetti coding enums, since c++ has a ghastly enum syntax.
 
   // methods:
-  void readInput();
   void makeProcessTable();
   void initializeMainQueue();
   void arrivalFunction(process &);
@@ -76,37 +77,7 @@ public:
 
   void terminateProcess(process &);
 };
-void Scheduler::readInput() // here purely for debugging. will cahnge back to main once bugs are fixed.
-{
-  ifstream in_file("/home/brohudev/treasurechest/00_College/02_Sophomore_Year_Archive/spring/OS (cosc 3360)/hw/hw1/input12.txt"); // todo fix this to use input redirection.
 
-  if (!in_file.is_open())
-  {
-    cerr << "Error: Unable to open file." << endl;
-  }
-
-  string line;
-  while (getline(in_file, line))
-  {
-    line.erase(0, line.find_first_not_of(" \t"));
-    line.erase(line.find_last_not_of(" \t") + 1);
-
-    if (line.empty())
-      break;
-
-    istringstream iss(line);
-    input_tuple row;
-
-    if (!(iss >> row.command >> row.time))
-    {
-      cerr << "Error reading line: " << line << endl;
-      continue;
-    }
-
-    inputTable.push_back(row);
-  }
-  in_file.close();
-}
 void Scheduler::makeProcessTable()
 {
   int num_process = 0; // set as pid first then incremented to form the count.
@@ -279,7 +250,7 @@ void Scheduler::ssdCompletion(process &proc)
   else // the only command after an ssd completes is a core.
     requestCoreTime(proc);
 }
-void Scheduler::completionFunction(process &proc)
+void Scheduler::completionFunction(process &proc) // pretty self explanatory: pick the right "completion" routine and execute it
 {
   if (inputTable[processTable[proc.PID].currentLine].command == "CORE")
     coreCompletion(proc);
