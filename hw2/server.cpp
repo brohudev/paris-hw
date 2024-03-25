@@ -5,56 +5,46 @@
 #include <netinet/in.h>
 #include <unistd.h>
 
-#define PORT 8080
-#define BUFFER_SIZE 1024
+#define PORT 32768
+#define IP_ADDRESS "127.0.0.1" //idk why this is here even though it does nothing
+#define BUFFER_SIZE 1024 //change in the other file as well if you want a diff size
+
+class SocketServer{
+    private:
+        int serverSocket;
+    
+    public:
+        SocketServer(const char*, int);
+        ~SocketServer();
+};
+
+SocketServer::SocketServer(const char* ip_address, int port_no){
+     // Create socket
+    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket == -1) {
+        std::cerr << "Error creating socket\n";
+        return;
+    }
+
+    // Bind to port
+    struct sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(port_no); // Port number
+    if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
+        std::cerr << "Error binding to port\n";
+        close(serverSocket);
+        return;
+    }
+}
+SocketServer::~SocketServer(){
+      close(serverSocket);
+}
 
 int main() {
-    int server_fd, new_socket;
-    struct sockaddr_in address;
-    int opt = 1;
-    int addrlen = sizeof(address);
-    char buffer[BUFFER_SIZE] = {0};
-    const char *ack_msg = "Message received by server.";
-
-    // Creating socket file descriptor
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Forcefully attaching socket to the port 8080
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, &opt, sizeof(opt))) {
-        perror("setsockopt");
-        exit(EXIT_FAILURE);
-    }
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
-
-    // Forcefully attaching socket to the port 8080
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
-    if (listen(server_fd, 3) < 0) {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
-
-    // Receiving message from client
-    read(new_socket, buffer, BUFFER_SIZE);
-    std::cout << "Client: " << buffer << std::endl;
-
-    // Sending acknowledgment to client
-    send(new_socket, ack_msg, strlen(ack_msg), 0);
-    std::cout << "Acknowledgment sent to client." << std::endl;
-
-    close(new_socket);
-    close(server_fd);
+    SocketServer server(IP_ADDRESS, PORT);
+    std::cout << "Server listening on port 32768\n";
+  
     return 0;
 }
 
