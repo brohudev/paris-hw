@@ -92,13 +92,15 @@ int main() {
         string input;
         cout << "Enter your request: ";
         getline(std::cin, input);
+        //make the code more readable :D
+        string command = input.substr(0, input.find_first_of(" ")-1);
 
-        if (input == "get filename") {
+        if (command == "get") {
             string fileName = input.substr(input.find_first_of(" ")+1);
-
             cout << "attempting to get file: " << fileName <<endl;
+
             client.sendRequest(fileName); //only send in the name bit of the input
-            
+
             client.receiveFile(fileName);
         } else if (input == "exit") {
             client.sendRequest("terminate");
