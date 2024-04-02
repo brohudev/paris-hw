@@ -13,19 +13,19 @@ using namespace std;
 #define BUFFER_SIZE 1024 //change in the other file as well if you want a diff size
 #define REPOSITORY_DIRECTORY "~/Repository/"
 
-class SocketServer{
-    private:
-        int serverSocket;
-    
-    public:
-        SocketServer(const char*, int);
-        ~SocketServer();
-        void handleClient(int clientSocket);
-        void listenForConnection();
+class SocketServer {
+private:
+    int serverSocket;
+
+public:
+    SocketServer(const char*, int);
+    ~SocketServer();
+    void handleClient(int clientSocket);
+    void listenForConnection();
 };
 
-SocketServer::SocketServer(const char* ip_address, int port_no){
-     // Create socket
+SocketServer::SocketServer(const char* ip_address, int port_no) {
+    // Create socket
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
     if (serverSocket == -1) {
         std::cerr << "Error creating socket\n";
@@ -50,13 +50,18 @@ SocketServer::SocketServer(const char* ip_address, int port_no){
         return;
     }
 
+    std::cout << "listening on port no " << PORT << std::endl;
 }
-SocketServer::~SocketServer(){
-      close(serverSocket);
+
+SocketServer::~SocketServer() {
+    close(serverSocket);
 }
+
 void SocketServer::handleClient(int clientSocket) {
     char buffer[BUFFER_SIZE];
     int bytesReceived;
+
+    std::cout << "got a client request.." << std::endl;
 
     // Receive message from client
     while ((bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0) {
@@ -94,10 +99,9 @@ void SocketServer::handleClient(int clientSocket) {
         } else if (message == "terminate") {
             // Send "Goodbye!" message to client
             send(clientSocket, "Goodbye!", strlen("Goodbye!"), 0);
-            
-            // Terminate child process
-            close(clientSocket);
-            exit(0);
+
+            // Terminate client connection
+            break;
         }
     }
 
@@ -107,42 +111,25 @@ void SocketServer::handleClient(int clientSocket) {
         std::cerr << "Error receiving message from client\n";
     }
 
-    close(clientSocket);
-    exit(1);
+    // close(clientSocket);
 }
-void SocketServer::listenForConnection(){
+
+void SocketServer::listenForConnection() {
     // Accept incoming connection
     struct sockaddr_in clientAddr;
     socklen_t clientAddrLen = sizeof(clientAddr);
     int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientAddrLen);
     if (clientSocket == -1) {
-        std::cerr << "Error accepting connection\n";
+        std::cout << "Error accepting connection\n";
         return;
     }
 
-    // Fork a child process to handle client
-    pid_t pid = fork();
-    if (pid == -1) {
-        std::cerr << "Error forking process\n";
-        close(clientSocket);
-        return;
-    } else if (pid == 0) {
-        // Inside child process
-        close(serverSocket);
-        handleClient(clientSocket);
-        close(clientSocket);
-        ;
-    } else {
-        // Inside parent process
-        close(clientSocket);
-        // Wait for child process to terminate
-        while (waitpid(-1, NULL, 1) > 0);
-    }
-};
+    // Handle client request
+    handleClient(clientSocket);
+}
 
 int main() {
     SocketServer server(IP_ADDRESS, PORT);
-
 
     std::cout << "Server listening on port " << PORT << std::endl;
 

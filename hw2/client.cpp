@@ -93,7 +93,7 @@ int main() {
         cout << "Enter your request: ";
         getline(std::cin, input);
         //make the code more readable :D
-        string command = input.substr(0, input.find_first_of(" ")-1);
+        string command = input.substr(0, input.find_first_of(" "));
 
         if (command == "get") {
             string fileName = input.substr(input.find_first_of(" ")+1);
