@@ -2,6 +2,77 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <cstring>
+#include <sys/stat.h>
+#include <fcntl.h>
+
+//set these parameters wrt your system. 
+#define FILE_DIRECTORY "./files/" 
+#define SERVER_PORT_NO 32770
+
+using namespace std;
+
+int handleClientRequests(int clientSocket) {
+    while (true) {
+        // Receive message from client
+        char buffer[1024] = {0};
+        int valread = read(clientSocket, buffer, 1024);
+        cout << "Received message from client: " << buffer << std::endl;
+
+        if (strcmp(buffer, "terminate") == 0) {
+            std::cout << "Client requested to terminate. Closing connection...\n";
+            close(clientSocket); // Close connection
+            return -1; // signal main to break
+        } else if (strcmp(buffer, "exit") == 0) {
+            std::cout << "Client requested to exit. Closing connection...\n";
+            close(clientSocket); // Close connection
+            return 0; // signal main to keep going
+        }
+
+        // Parse message to get filename
+        string message(buffer);
+        string delimiter = " ";
+        size_t pos = message.find(delimiter);
+        if (pos == string::npos) {
+            std::cerr << "Invalid message format\n";
+            close(clientSocket);
+            return 1; // Return 1 if invalid message format
+        }
+        string command = message.substr(0, pos);
+        string filename = message.substr(pos + delimiter.length());
+
+        // handle case: command is "get"
+        if (command == "get") {
+            // Check if the file exists
+            std::string filepath = FILE_DIRECTORY + filename;
+            int file = open(filepath.c_str(), O_RDONLY);
+            if (file == -1) {//send fileNotFound error
+                std::cout << "File not found: " << filename << std::endl;
+                const char *response = "fileNotFound";
+                send(clientSocket, response, strlen(response), 0);
+                continue; //restart loop
+            } 
+            else {// Get file size and send it.
+                struct stat fileStat;
+                if (fstat(file, &fileStat) == -1) { // send fileNotFound because you cant read file size
+                    std::cout << "cant get file size: " << filename << std::endl;
+                    const char *response = "fileNotFound";
+                    send(clientSocket, response, strlen(response), 0);
+                    continue; //restart loop
+                }
+
+                std::string fileSize = std::to_string(fileStat.st_size);
+                message = "File found: " + filename + ", Size: " + fileSize + " bytes";
+                send(clientSocket, message.c_str(), message.size(), 0);
+
+                close(file);
+            }
+        } else {
+            cout << "Invalid command\n"; continue;
+        }
+    }
+}
+
 
 int main() {
     // Create socket
@@ -15,7 +86,7 @@ int main() {
     struct sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
-    serverAddr.sin_port = htons(8081);
+    serverAddr.sin_port = htons(SERVER_PORT_NO);
 
     if (bind(serverSocket, (struct sockaddr *)&serverAddr, sizeof(serverAddr)) == -1) {
         std::cerr << "Error: Could not bind to port\n";
@@ -28,47 +99,25 @@ int main() {
         return 1;
     }
 
-    std::cout << "Server listening on port 8081...\n";
+    std::cout << "Server listening on port "<<SERVER_PORT_NO<<"...\n";
 
-    // Accept incoming connections
-    struct sockaddr_in clientAddr;
-    socklen_t clientLen = sizeof(clientAddr);
-    int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
-    if (clientSocket == -1) {
-        std::cerr << "Error: Could not accept incoming connection\n";
-        return 1;
+    while (true) {
+        struct sockaddr_in clientAddr;
+        socklen_t clientLen = sizeof(clientAddr);
+        int clientSocket = accept(serverSocket, (struct sockaddr *)&clientAddr, &clientLen);
+        if (clientSocket == -1) {
+            std::cerr << "Error: Could not accept incoming connection\n";
+            return 1;
+        }
+
+        // Handle client request
+        if (handleClientRequests(clientSocket) < 0){
+            break; //the client requested to terminate the server as well. 
+        }
+
+        //else continue with a new client connection. 
     }
 
-    // Receive message from client
-    char buffer[1024] = {0};
-    int valread = read(clientSocket, buffer, 1024);
-    std::cout << "Received message from client: " << buffer << std::endl;
-
-    // Close sockets
-    close(clientSocket);
     close(serverSocket);
-
     return 0;
 }
-
-
-/*
-1. Initialize socket for server
-2. Bind socket to server address
-3. Listen for incoming connections
-4. Loop indefinitely:
-    5. Accept incoming connection
-    8. Loop indefinitely:
-        9. Receive message from client
-        10. If message is "get filename":
-            11. Check if file exists in Repository directory
-            12. If file exists:
-                13. send the file size and name as a message. 
-                15. Print message indicating file sent and its size
-            16. Else:
-                17. Send message to client indicating file is missing
-        18. Else if message is "terminate":
-            19. Send "Goodbye!" message to client
-            20. Terminate child process
-21. Close server socket
-*/
