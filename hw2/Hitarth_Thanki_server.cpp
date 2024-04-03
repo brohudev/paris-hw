@@ -8,15 +8,16 @@
 
 //set these parameters wrt your system. 
 #define FILE_DIRECTORY "./files/" 
-#define SERVER_PORT_NO 32770
+//client must be on a different port than the one specified bellow:
+#define SERVER_PORT_NO 32770 //the port the server will bind itself to,a dn the clients will send messages to
+#define BUFFER_SIZE 1024 //change in the other file too. 
 
 using namespace std;
 
 int handleClientRequests(int clientSocket) {
     while (true) {
-        // Receive message from client
-        char buffer[1024] = {0};
-        int valread = read(clientSocket, buffer, 1024);
+        char buffer[BUFFER_SIZE] = {0};
+        int valread = read(clientSocket, buffer, BUFFER_SIZE); //get message from client
         cout << "Received message from client: " << buffer << std::endl;
 
         if (strcmp(buffer, "terminate") == 0) {
@@ -47,7 +48,7 @@ int handleClientRequests(int clientSocket) {
             std::string filepath = FILE_DIRECTORY + filename;
             int file = open(filepath.c_str(), O_RDONLY);
             if (file == -1) {//send fileNotFound error
-                std::cout << "File not found: " << filename << std::endl;
+                std::cout << "A client requested the file " << filename << ", that file is missing!" << std::endl;
                 const char *response = "fileNotFound";
                 send(clientSocket, response, strlen(response), 0);
                 continue; //restart loop
@@ -55,14 +56,15 @@ int handleClientRequests(int clientSocket) {
             else {// Get file size and send it.
                 struct stat fileStat;
                 if (fstat(file, &fileStat) == -1) { // send fileNotFound because you cant read file size
-                    std::cout << "cant get file size: " << filename << std::endl;
+                    std::cout << "cant get file size of the file: " << filename << std::endl;
                     const char *response = "fileNotFound";
                     send(clientSocket, response, strlen(response), 0);
                     continue; //restart loop
                 }
 
                 std::string fileSize = std::to_string(fileStat.st_size);
-                message = "File found: " + filename + ", Size: " + fileSize + " bytes";
+                message = filename + " (" + fileSize + " bytes)";
+               cout <<"  A client requested the file" << filename << ", Sent " << fileSize << " bytes."<<endl;
                 send(clientSocket, message.c_str(), message.size(), 0);
 
                 close(file);
@@ -72,7 +74,6 @@ int handleClientRequests(int clientSocket) {
         }
     }
 }
-
 
 int main() {
     // Create socket
@@ -110,11 +111,9 @@ int main() {
             return 1;
         }
 
-        // Handle client request
-        if (handleClientRequests(clientSocket) < 0){
+        if (handleClientRequests(clientSocket) < 0){ //handle the requests
             break; //the client requested to terminate the server as well. 
         }
-
         //else continue with a new client connection. 
     }
 

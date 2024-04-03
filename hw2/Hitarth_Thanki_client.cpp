@@ -5,7 +5,9 @@
 #include <unistd.h>
 #include <cstring>
 
-#define SERVER_PORT 32770
+//make sure these two numbers are the same across both files. 
+#define SERVER_PORT 32770 
+#define BUFFER_SIZE 1024  
 
 using namespace std;
 
@@ -28,26 +30,31 @@ int main() {
     }
 
     cout <<"connected to the server at port: "<<SERVER_PORT<< endl;
-    std::string message;
+    string message;
 
     while (true) {
-        std::cout << "Enter message to send to server (type 'terminate' to quit the client and server): ";
-        std::getline(std::cin, message);
+        cout << "Enter message to send to server (type 'terminate' to quit the client and server): ";
+        getline(cin, message);
 
         if (message == "terminate") { //send exit to server and quit
             send(clientSocket, message.c_str(), message.size(), 0);
+            cout << "sent terminate message to server, exiting client..." <<endl;
             break; // Exit loop if user types 'exit'
         }
-
+        if (message == "exit") { //send exit to server and quit
+            send(clientSocket, message.c_str(), message.size(), 0);
+            cout << "sent exit message to server, exiting client..." <<endl;
+            break; // Exit loop if user types 'exit'
+        }
         send(clientSocket, message.c_str(), message.size(), 0);
-        std::cout << "Message sent to server\n";
+        cout << "Message sent to server\n";
 
         // Receive response from server
-        char buffer[1024] = {0};
-        int valread = read(clientSocket, buffer, 1024);
+        char buffer[BUFFER_SIZE] = {0};
+        int valread = read(clientSocket, buffer, BUFFER_SIZE);
 
         if (strcmp(buffer, "fileNotFound") != 0) {
-            std::cout << "Received message from server: " << buffer << std::endl;
+            cout << "Received file "<<  buffer << endl;
         }
     }
 
