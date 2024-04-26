@@ -1,6 +1,3 @@
-
-// To solve this problem, we will use POSIX threads (pthreads) in C. We will create a thread for each patron and use mutexes and condition variables to synchronize them. Here is a step-by-step plan:
-
 // 1. Define a struct to hold patron data (name, arrival time, processing time).
 // 2. Read the number of clerks from the command line.
 // 3. Read the patron data from the standard input and store it in an array of structs.
@@ -20,6 +17,7 @@
 #include <vector>
 #include <pthread.h>
 #include <unistd.h>
+#include <fstream>
 
 struct Patron {
      std::string name;
@@ -37,19 +35,12 @@ void* patron(void *arg) {
      std::cout << p->name << " arrives at the post office.\n";
 
      pthread_mutex_lock(&mutex);
-     if (nFreeClerks == 0) {
-          nWaited++;
-          while (nFreeClerks == 0)
-               pthread_cond_wait(&freeClerks, &mutex);
-     }
-     nFreeClerks--;
-     std::cout << p->name << " starts getting help.\n";
+     std::cout << "Patron data: " << "Name: " << p->name << ", Arrival Time: " << p->arrival_time << ", Processing Time: " << p->processing_time << "\n";
      pthread_mutex_unlock(&mutex);
 
      sleep(p->processing_time);
 
      pthread_mutex_lock(&mutex);
-     nFreeClerks++;
      std::cout << p->name << " leaves the post office.\n";
      pthread_cond_signal(&freeClerks);
      pthread_mutex_unlock(&mutex);
@@ -70,12 +61,14 @@ int main(int argc, char *argv[]) {
      std::vector<Patron> patrons;
      std::vector<pthread_t> threads;
      Patron p;
-     while (std::cin >> p.name >> p.arrival_time >> p.processing_time) {
+     std::ifstream inputFile("input.txt"); // Assuming the input file is named "input.txt"
+     while (inputFile >> p.name >> p.arrival_time >> p.processing_time) {
           patrons.push_back(p);
           threads.push_back(pthread_t());
           pthread_create(&threads.back(), NULL, patron, &patrons.back());
           nPatrons++;
      }
+     inputFile.close();
 
      for (auto& t : threads)
           pthread_join(t, NULL);
